@@ -1,0 +1,36 @@
+ # CAN1 - NMEA 2000 network with instruments
+ # CAN2 - NMEA 2000 network with MFD
+
+ FW_CAN1_TO_CAN2=ON
+ FW_CAN2_TO_CAN1=ON
+
+ CAN2_HARDWARE_FILTER_1=0x00EF0000, 0x00FF0000 # addressable proprietary messages
+
+ PGNS_TO_ASSEMBLY=0x1F513  # pre-assembly for this fast-packet (multiframe) message
+
+ # Log distance handler
+ match(CAN1,0x1F51300,0x1FFFF00)
+ {
+    set(DATA + 6, UINT32, get(DATA + 6, UINT32) - 1852000) 
+    send() # Log distance reduced, 1000 nm off
+ }
+
+ # Actual pressure handler
+ match(CAN1,0x1FD0A00,0x1FFFF00)
+ {
+    send() 			# forward the original message 
+    A = get(DATA + 2, UINT8) 	# extract the data type
+    if (A == 0) 		# is it atmospheric pressure?
+    {
+ 	B = get(DATA+3, INT32)  # extract the pressure value
+ 	if (B != 0x7FFFFFFF) 	# check the validity of the value
+ 	{
+ 	 set(1, UINT8, 6) 		   # change PGN from 0x1FD0A to 0x1FD06
+ 	 set(DATA + 1, UINT32, 0xFFFFFFFF) # set values for unused fields
+ 	 set(DATA + 5, UINT16, B / 1000)   # convert and set the pressure
+ 	 send(CAN2) 			   # send Environmental Parameters to CAN2
+ 	 set(0, UINT8, addr()) # replace the address with the address of the Bridge
+ 	 send(CAN1) 	       # send Environmental Parameters to CAN1
+ 	}
+    }
+ }
