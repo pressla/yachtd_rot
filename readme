@@ -1,1 +1,17 @@
 pgns are from canboat pgns.json
+
+CAN1 is a small subnet connecting rudder sensor for test purpose
+CAN2 is the rest of the network and has a wifi gateway connected and CAN Log viewer on the PC
+
+to emulate the missing anemometer and hull compass, this message is sent by CAN Log viewer
+09F11299 FF D0 08 D0 03 00 55 FD
+
+1. Hull heading
+2. mast heading
+3. AWA @ Mast
+
+for debug purpose, the HDG message is sent and has deviation and variation used to display mast and hull heading difference
+
+ISSUES:
+1. the gauges connected by the wifi hotspot do not update on NAV data, it only shows rudder and ENV data.
+2. Attitude data is not transformed from 0183 to N2K segment.

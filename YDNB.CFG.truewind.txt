@@ -50,6 +50,7 @@ match(CAN1,0x1FD0200,0x1FFFF00)
 			Y = C + A # TWD=COG+AWA
 
 			if (S == 0) {
+			
 
 				X = W # TWS is equal to AWS when no speed
 			}
