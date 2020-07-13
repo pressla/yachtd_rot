@@ -15,7 +15,9 @@ Adafruit_Si7021 sensor = Adafruit_Si7021();
 Adafruit_LPS35HW lps35hw = Adafruit_LPS35HW();
 
 ADS myFlexSensor; //Create instance of the Angular Displacement Sensor (ADS) class
-
+const int FlexDataReadyPin = 19;
+const int FlexResetPin = 18;
+int samples = 0;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 float mast_angle = 0;
@@ -23,7 +25,7 @@ float T[3];
 float P[2];
 float H[2];
 
-unsigned long delayTime=1000;
+unsigned long delayTime=100;
 TwoWire I2C = TwoWire(0);
 
 void setup() {
@@ -34,6 +36,8 @@ void setup() {
   u8g2.begin();
  
 drawFontFaceDemo();
+  pinMode(FlexDataReadyPin, INPUT);
+  pinMode(FlexResetPin, OUTPUT);
   
   Serial.println("\nI2C Scanner");
   byte error, address;
@@ -69,7 +73,9 @@ drawFontFaceDemo();
   if (myFlexSensor.begin() == false)
   {
     Serial.println(F("No Bend sensor detected. Check wiring."));
-    
+  } else {
+    myFlexSensor.setSampleRate(100); 
+    myFlexSensor.poll(); //Begin sensor outputting readings
   }
   bool status;
 
@@ -92,6 +98,8 @@ drawFontFaceDemo();
   delay(1000);}
  
 void loop() { 
+
+  
   printValues();
   printDisplay();
   delay(delayTime);
@@ -111,7 +119,7 @@ void printValues() {
   Serial.print(bme.readPressure() / 100.0F);
   Serial.println(" hPa");
 
-  H[0] = bme.readHumidity()+25.9;
+  H[0] = bme.readHumidity();
   H[1] = sensor.readHumidity();
   Serial.print("BME280 Humidity = ");
   Serial.print(bme.readHumidity());
@@ -131,14 +139,25 @@ void printValues() {
   Serial.print(lps35hw.readPressure()+13.07);
   Serial.println(" hPa");
 
-    if (myFlexSensor.available() == true)
+  if (digitalRead(FlexDataReadyPin) == LOW)
   {
-    mast_angle = myFlexSensor.getX();
-    Serial.print("Bend Sensor (Mast): ");
-    Serial.print(mast_angle);
-    Serial.println();
-  }
-  }
+    if (myFlexSensor.available() == true)  //new data?
+    {
+      samples++;
+      Serial.print(samples / (millis() / 1000.0), 2);
+      Serial.print("Hz");
+      Serial.print(",");
+      mast_angle = myFlexSensor.getX();
+      Serial.print("Bend Sensor (Mast): ");
+      Serial.print(mast_angle);
+      Serial.println();
+    } else {
+      Serial.print("Bend Sensor DATA unavailable");
+      Serial.println();
+    }
+ }
+
+}
 
 void printDisplay() {
   u8g2.clearBuffer();          // clear the internal memory
