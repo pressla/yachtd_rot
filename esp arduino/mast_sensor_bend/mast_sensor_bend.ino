@@ -20,6 +20,8 @@ WiFiClient client;
 int httpPort = 1457;
 byte bdata[100];
 String sbdata;
+unsigned long bcmd;
+unsigned long BendErrorCount=0;
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME280 bme;
@@ -38,7 +40,7 @@ float T[3];
 float P[2];
 float H[2];
 
-unsigned long delayTime=40;
+unsigned long delayTime=100;
 TwoWire I2C = TwoWire(0);
 
 void setup() {
@@ -50,12 +52,12 @@ void setup() {
  
 drawFontFaceDemo();
   pinMode(FlexDataReadyPin, INPUT);
-  pinMode(FlexResetPin, INPUT);
-  //myFlexSensor.setResetPin(FlexResetPin);
+  pinMode(FlexResetPin, OUTPUT);
+  myFlexSensor.setResetPin(FlexResetPin);
   //myFlexSensor.hardwareReset();
   delay (500);
 
-  //digitalWrite(FlexResetPin,HIGH);
+  digitalWrite(FlexResetPin,HIGH);
 
   Serial.println("\nconnect Wifi...");
   wifiConnect();
@@ -122,8 +124,16 @@ void loop() {
   readWriteWeb();
   readValues();
   //printValues();
-  Serial.println(mast_angle);
+  //Serial.println(mast_angle);
+  Serial.println(String(samples)+" BendErrorCount:"+String(BendErrorCount));
   printDisplay();
+  if (samples > 500) {
+    //myFlexSensor.hardwareReset();
+    myFlexSensor.stop();
+    delay (500);
+    myFlexSensor.poll();
+    samples =0;
+  }
   delay(delayTime);
 }
 
@@ -153,11 +163,13 @@ void readWriteWeb() {
     if (c==0x0D) {
       int pos = line.indexOf("T ");
       if (pos <0) pos = line.indexOf("R ");
-      scmd = line.substring(pos+2,23);
+      scmd = line.substring(pos+2,pos+10);
+      bcmd = strtoul(scmd.c_str(),0,64);
       sdata = line.substring(pos+11);
       ConvertHexStringToByteArray(sdata);
       //Serial.println(line);
       Serial.println(scmd+"--"+sdata+"---"+sbdata);
+      MatchCmd();
       line =""; 
     } else {
     line += c;
@@ -166,6 +178,10 @@ void readWriteWeb() {
   }
   Serial.println("EOF read:");
 
+}
+
+void MatchCmd() {
+  
 }
 
 void readValues() {
@@ -181,10 +197,14 @@ void readValues() {
     {
       mast_angle = myFlexSensor.getX();
       samples++;
+      BendErrorCount=0;
+      
     } else {
       Serial.print("Bend Sensor DATA unavailable");
+      BendErrorCount+=1;
       Serial.println();
-      //myFlexSensor.hardwareReset();
+      if (BendErrorCount>100)
+        myFlexSensor.hardwareReset();
     }
   
 }
@@ -290,8 +310,8 @@ void ConvertHexStringToByteArray(String hexString)
         bdata[index] = (byte)strtoul(byteValue.c_str(),0,16);
         char car[5];
         sprintf(car,"%02X",bdata[index]);
+        if (index>0) sbdata+=" ";
         sbdata+=String(car);
-
     }
     //Serial.println();
 
